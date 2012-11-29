@@ -120,7 +120,8 @@
 		PHASE_END = "end",
 		PHASE_CANCEL = "cancel",
 
-		SUPPORTS_TOUCH = 'ontouchstart' in window,
+		SUPPORTS_POINTER = navigator.msPointerEnabled,
+		SUPPORTS_TOUCH = SUPPORTS_POINTER || 'ontouchstart' in window,
 
 		PLUGIN_NS = 'TouchSwipe';
 
@@ -170,7 +171,7 @@
 	* as well as execute methods by name as per jQuery plugin architecture
 	*/
 	$.fn.swipe = function (method) {
-		var $this = $(this),
+		var $this = $(this).css({msTouchAction: 'none'}),
 			plugin = $this.data(PLUGIN_NS);
 
 		//Check if we are already instantiated and trying to execute a method	
@@ -185,7 +186,6 @@
 		else if (!plugin && (typeof method === 'object' || !method)) {
 			return init.apply(this, arguments);
 		}
-
 		return $this;
 	};
 
@@ -263,9 +263,9 @@
 	*/
 	function touchSwipe(element, options) {
 		var useTouchEvents = (SUPPORTS_TOUCH || !options.fallbackToMouseEvents),
-			START_EV = useTouchEvents ? 'touchstart' : 'mousedown',
-			MOVE_EV = useTouchEvents ? 'touchmove' : 'mousemove',
-			END_EV = useTouchEvents ? 'touchend' : 'mouseup',
+			START_EV = useTouchEvents ? (SUPPORTS_POINTER && 'MSPointerDown') || 'touchstart' : 'mousedown',
+			MOVE_EV = useTouchEvents ? (SUPPORTS_POINTER && 'MSPointerMove') || 'touchmove' : 'mousemove',
+			END_EV = useTouchEvents ? (SUPPORTS_POINTER && 'MSPointerUp') || 'touchend' : 'mouseup',
 			CANCEL_EV = 'touchcancel';
 
 		var distance = 0;
@@ -324,7 +324,7 @@
 		*/
 		this.destroy = function () {
 			removeListeners();
-			$element.data(PLUGIN_NS, null);
+			$element.css({msTouchAction: ''}).data(PLUGIN_NS, null);
 			return $element;
 		};
 
@@ -347,14 +347,14 @@
 			event = event.originalEvent;
 			
 			var ret,
-				evt = SUPPORTS_TOUCH ? event.touches[0] : event;
+				evt = SUPPORTS_POINTER ? event : SUPPORTS_TOUCH ? event.touches[0] : event;
 
 			phase = PHASE_START;
 
 			//If we support touches, get the finger count
 			if (SUPPORTS_TOUCH) {
 				// get the total number of fingers touching the screen
-				fingerCount = event.touches.length;
+				fingerCount = SUPPORTS_POINTER ? 1 : event.touches.length;
 			}
 			//Else this is the desktop, so stop the browser from dragging the image
 			else {
@@ -424,17 +424,17 @@
 				return;
 
 			var ret,
-				evt = SUPPORTS_TOUCH ? event.touches[0] : event;
+				evt = SUPPORTS_POINTER ? event : SUPPORTS_TOUCH ? event.touches[0] : event;
 
 			//Save the first finger data
-			fingerData[0].end.x = SUPPORTS_TOUCH ? event.touches[0].pageX : evt.pageX;
-			fingerData[0].end.y = SUPPORTS_TOUCH ? event.touches[0].pageY : evt.pageY;
+			fingerData[0].end.x = SUPPORTS_POINTER ? evt.pageX : SUPPORTS_TOUCH ? event.touches[0].pageX : evt.pageX;
+			fingerData[0].end.y = SUPPORTS_POINTER ? evt.pageY : SUPPORTS_TOUCH ? event.touches[0].pageY : evt.pageY;
 			
 			endTime = getTimeStamp();
 
 			direction = calculateDirection(fingerData[0].start, fingerData[0].end);
 			if (SUPPORTS_TOUCH) {
-				fingerCount = event.touches.length;
+				fingerCount = SUPPORTS_POINTER ? 1 : event.touches.length;
 			}
 
 			phase = PHASE_MOVE;
